@@ -1,6 +1,9 @@
 import express from "express";
+import compression from "compression";
+import helmet from "helmet";
 import React from "react";
 import ReactDOMServer from "react-dom/server";
+import { StaticRouter } from "react-router-dom";
 import CssBaseline from "@material-ui/core/CssBaseline";
 import { ServerStyleSheets, ThemeProvider } from "@material-ui/core/styles";
 import App from "./src/App";
@@ -11,12 +14,19 @@ function renderFullPage(html, css) {
     <!DOCTYPE html>
     <html lang="en">
       <head>
-        <title>My page</title>
-        <style id="jss-server-side">${css}</style>
+        <meta charset="utf-8" />
+        <link rel="icon" href="/public/favicon.ico" />
         <meta name="viewport" content="minimum-scale=1, initial-scale=1, width=device-width" />
+        <meta name="theme-color" content="#000000" />
+        <meta name="description" content="Web site created using create-react-app" />
+        <link rel="apple-touch-icon" href="/public/logo192.png" />
+        <link rel="manifest" href="/public/manifest.json" />
+        <title>My page</title>
         <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap" />
+        <style id="jss-server-side">${css}</style>
       </head>
       <body>
+        <noscript>You need to enable JavaScript to run this app.</noscript>
         <script async src="build/bundle.js"></script>
         <div id="root">${html}</div>
       </body>
@@ -26,34 +36,40 @@ function renderFullPage(html, css) {
 
 function handleRender(req, res) {
   const sheets = new ServerStyleSheets();
+  const context = {};
 
-  // Render the component to a string.
   const html = ReactDOMServer.renderToString(
     sheets.collect(
-      <ThemeProvider theme={theme}>
-        {/* CssBaseline kickstart an elegant, consistent, and simple baseline to build upon. */}
-        <CssBaseline />
-        <App />
-      </ThemeProvider>
+      <StaticRouter location={req.url} context={context}>
+        <ThemeProvider theme={theme}>
+          <CssBaseline />
+          <App />
+        </ThemeProvider>
+      </StaticRouter>
     )
   );
 
-  // Grab the CSS from our sheets.
   const css = sheets.toString();
 
-  // Send the rendered page back to the client.
+  if (context.status === 404) {
+    res.status(404);
+  }
   res.send(renderFullPage(html, css));
 }
 
 const app = express();
 
+app.use(compression());
+
+app.use(helmet());
+
 app.use("/build", express.static("build"));
 
-// This is fired every time the server-side receives a request.
+app.use("/public", express.static("public"));
+
 app.use(handleRender);
 
 const port = 3000;
 app.listen(port, () => {
-  // eslint-disable-next-line no-console
   console.log(`Listening on ${port}`);
 });
